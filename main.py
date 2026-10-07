@@ -1,6 +1,8 @@
 import os
 import json
 import ctypes
+import socket
+import sys
 from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -189,7 +191,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
                 <button onclick="sendMediaKey('next')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-200 transition shadow">Вперед ⏭</button>
                 <div class="h-4 w-[1px] bg-slate-700 mx-1 hidden sm:block"></div>
                 <button onclick="sendMediaKey('voldown')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md text-xs font-semibold text-slate-200 transition shadow">🔉 Тихо (-)</button>
-                <button onclick="sendMediaKey('volup')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2 py-1 rounded-md text-xs font-semibold text-slate-200 transition shadow">🔊 Громче (+)</button>
+                <button onclick="sendMediaKey('volup')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-2.5 py-1 rounded-md text-xs font-semibold text-slate-200 transition shadow">🔊 Громче (+)</button>
                 <button onclick="sendMediaKey('mute')" class="bg-red-900/40 hover:bg-red-900/60 border border-red-700/50 px-2 py-1 rounded-md text-xs font-semibold text-red-300 transition shadow">🔇 Mute</button>
             </div>
         </div>
@@ -723,6 +725,29 @@ async def get_report_text():
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
+def find_free_port(start_port=8000, max_port=9000):
+    for port in range(start_port, max_port):
+        for host in ("127.0.0.1", "0.0.0.0"):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                try:
+                    s.bind((host, port))
+                except OSError:
+                    break
+        else:
+            return port
+    return start_port
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    
+    if len(sys.argv) > 1:
+        try:
+            free_port = int(sys.argv[1])
+        except ValueError:
+            free_port = find_free_port(8000)
+    else:
+        free_port = find_free_port(8000)
+
+    print(f"\n[🌐] Сервер успешно развёртывается по адресу: http://127.0.0.1:{free_port}\n")
+    uvicorn.run(app, host="127.0.0.1", port=free_port)
